@@ -1,67 +1,55 @@
-ARG JITSI_REPO=jitsi
-#FROM ${JITSI_REPO}/base-java
 FROM hemantlinux2010/jibri:ubuntu
-
-ARG CHROME_RELEASE=latest
-ARG CHROMEDRIVER_MAJOR_RELEASE=latest
-#ARG CHROME_RELEASE=78.0.3904.97
-#ARG CHROMEDRIVER_MAJOR_RELEASE=78
+ARG DEBIAN_FRONTEND=noninteractive
+RUN \
+     wget -qO - https://download.jitsi.org/jitsi-key.gpg.key | apt-key add - \
+     && apt-get update \
+        && apt-get install -y libgl1-mesa-dri procps \
+        && apt-get install -y openjdk-8-jdk
 
 RUN \
-        apt-key adv --keyserver hkps://keys.openpgp.org --recv-keys B4D2D216F1FD7806 \
-	&& apt-dpkg-wrap apt-get update \
-        && apt-dpkg-wrap apt-get -y install curl \
-        && curl -4so /tmp/jibri_0.2.0-1_all.deb http://202.157.87.60/jibri_0.2.0-1_all.deb \
-        && apt-get install -y /tmp/jibri_0.2.0-1_all.deb \
-	&& apt-dpkg-wrap apt-get install -y libgl1-mesa-dri \
-	&& apt-cleanup
+     apt-get install -y curl
+
+ARG CHROME_RELEASE=90.0.4430.212
+ARG CHROMEDRIVER_MAJOR_RELEASE=90
+
 
 RUN \
-	[ "${CHROME_RELEASE}" = "latest" ] \
-	&& curl -4s https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-	&& echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
-	&& apt-dpkg-wrap apt-get update \
-	&& apt-dpkg-wrap apt-get install -y google-chrome-stable \
-	&& apt-cleanup \
-	|| true
+        [ "${CHROME_RELEASE}" = "latest" ] \
+        && wget -q https://dl-ssl.google.com/linux/linux_signing_key.pub -O /etc/apt/trusted.gpg.d/google.asc \
+        && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+        && apt-get update \
+        && apt-get install -y google-chrome-stable \
+        || true
 
 RUN \
-        [ "${CHROME_RELEASE}" != "latest" ] \
-        && curl -4so /tmp/google-chrome-stable_${CHROME_RELEASE}-1_amd64.deb http://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_RELEASE}-1_amd64.deb \
-	&& apt-dpkg-wrap apt-get update \
-        && apt-dpkg-wrap apt-get install -y /tmp/google-chrome-stable_${CHROME_RELEASE}-1_amd64.deb \
-	&& apt-cleanup \
-	|| true
-RUN \   
-#        echo "deb http://ftp.de.debian.org/debian sid main " > /etc/apt/sources.list.d/ffmped.list \
-        apt-dpkg-wrap apt-get -y update \
-        && apt-get install -y software-properties-common \
-        && add-apt-repository ppa:jonathonf/ffmpeg-4 \
-        && apt-dpkg-wrap apt-get -y update \
-        && apt-dpkg-wrap apt-get install -y ffmpeg \
-        && apt-dpkg-wrap apt-get install -y unzip
-
-#RUN \
-	#[ "${CHROMEDRIVER_MAJOR_RELEASE}" = "latest" ] \
-	#&& CHROMEDRIVER_RELEASE="$(curl -4Ls https://chromedriver.storage.googleapis.com/LATEST_RELEASE)" \
-	#|| CHROMEDRIVER_RELEASE="$(curl -4Ls https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROMEDRIVER_MAJOR_RELEASE})" \
-#        rm -rf /usr/bin/chromedriver \
-#	&& wget -b https://chromedriver.storage.googleapis.com/91.0.4472.101/chromedriver_linux64.zip \
-#	| unzip >> /usr/bin/chromedriver \
-#	&& chmod +x /usr/bin/chromedriver \
-#	&& chromedriver --version
+    [ "${CHROME_RELEASE}" != "latest" ] \
+    && curl -4so "/tmp/google-chrome-stable_${CHROME_RELEASE}-1_amd64.deb" "http://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_
+${CHROME_RELEASE}-1_amd64.deb" \
+        && apt-get update \
+        && apt-get install -y "/tmp/google-chrome-stable_${CHROME_RELEASE}-1_amd64.deb" \
+        || true
 
 RUN \
-        apt-dpkg-wrap apt-get update \
-        && apt-dpkg-wrap apt-get install -y jitsi-upload-integrations jq \
-        && apt-dpkg-wrap apt-get install -y tzdata \
-#        && echo "Asia/Kolkata" > /etc/timezone \
-#        && dpkg-reconfigure -f noninteractive tzdata \
+        [ "${CHROMEDRIVER_MAJOR_RELEASE}" = "latest" ] \
+        && CHROMEDRIVER_RELEASE="$(curl -4Ls https://chromedriver.storage.googleapis.com/LATEST_RELEASE)" \
+        || CHROMEDRIVER_RELEASE="$(curl -4Ls https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROMEDRIVER_MAJOR_RELEASE})" \
+        && curl -4Ls "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_RELEASE}/chromedriver_linux64.zip" \
+        | zcat >> /usr/bin/chromedriver \
+        && chmod +x /usr/bin/chromedriver \
+        && chromedriver --version
+
+COPY    jibri_0.2.0-1_all.deb /tmp/
+RUN \
+        apt-get install -y /tmp/jibri_0.2.0-1_all.deb \
+        && apt-get install -y libgl1-mesa-dri
+
+RUN \
+         apt-get update \
+        && apt-get install -y jitsi-upload-integrations jq \
+        && apt-get install -y tzdata \
         && apt-cleanup
-ENV TZ Asia/Kolkata
-COPY chromedriver /usr/bin/chromedriver
-RUN \ 
-         chromedriver --version
+
+ENV     TZ Asia/Kolkata
 
 COPY rootfs/ /
 
